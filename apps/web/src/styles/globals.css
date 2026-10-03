@@ -1,0 +1,65 @@
+@import 'tailwindcss';
+
+/* Design tokens, spec section 8.1. Original identity, not a Trello clone. */
+@theme {
+  --color-bg: #f4f5f7;
+  --color-surface: #ffffff;
+  --color-surface-2: #ebecf0;
+  --color-list-bg: #ebecf0;
+  --color-card-bg: #ffffff;
+  --color-border: #dfe1e6;
+  --color-text: #172b4d;
+  --color-text-muted: #5e6c84;
+  --color-accent: #2563eb;
+  --color-accent-press: #1d4ed8;
+  --color-danger: #de350b;
+  --color-success: #22a06b;
+
+  --radius-token: 8px;
+  --radius-token-sm: 4px;
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+:root {
+  --radius: 8px;
+  --radius-sm: 4px;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The board scrolls horizontally; nothing else on the page should. */
+.board-scroll {
+  scrollbar-width: thin;
+}
+
+.board-scroll::-webkit-scrollbar {
+  height: 12px;
+  width: 12px;
+}
+
+.board-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,29 @@
+export const ERROR_CODES = {
+  UNAUTHENTICATED: 'UNAUTHENTICATED',
+  TOKEN_EXPIRED: 'TOKEN_EXPIRED',
+  FORBIDDEN: 'FORBIDDEN',
+  NOT_FOUND: 'NOT_FOUND',
+  VALIDATION_FAILED: 'VALIDATION_FAILED',
+  CONFLICT: 'CONFLICT',
+  RATE_LIMITED: 'RATE_LIMITED',
+  UPLOAD_TOO_LARGE: 'UPLOAD_TOO_LARGE',
+  INTERNAL: 'INTERNAL',
+} as const;
+
+export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
+
+export const ERROR_STATUS: Record<ErrorCode, number> = {
+  UNAUTHENTICATED: 401,
+  TOKEN_EXPIRED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  VALIDATION_FAILED: 422,
+  CONFLICT: 409,
+  RATE_LIMITED: 429,
+  UPLOAD_TOO_LARGE: 413,
+  INTERNAL: 500,
+};
+
+export interface ApiErrorBody {
+  error: { code: ErrorCode; message: string };
+}

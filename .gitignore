@@ -1,0 +1,14 @@
+node_modules
+dist
+.next
+.env
+.env.local
+*.log
+coverage
+.DS_Store
+playwright-report
+test-results
+
+docker-compose.override.yml
+.env.prod.local
+apps/web/*.png
