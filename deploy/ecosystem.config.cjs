@@ -6,6 +6,9 @@
 // GitHub Actions and unpacked into /root/subzero-demo/web, because a Next build
 // would starve the production SubZero API sharing this box.
 const ROOT = '/root/subzero-demo';
+// The droplet's system Node is 18.7; Next.js 15 needs 18.18+. Other apps here
+// already run on this nvm Node 20, and so does the demo.
+const NODE = '/root/.nvm/versions/node/v20.20.0/bin/node';
 
 module.exports = {
   apps: [
@@ -13,6 +16,7 @@ module.exports = {
       name: 'subzero-demo-api',
       cwd: `${ROOT}/app/apps/api`,
       script: 'dist/main.js',
+      interpreter: NODE,
       env: { NODE_ENV: 'production' },
       max_memory_restart: '400M',
     },
@@ -20,6 +24,7 @@ module.exports = {
       name: 'subzero-demo-web',
       cwd: `${ROOT}/web/apps/web`,
       script: 'server.js',
+      interpreter: NODE,
       env: { NODE_ENV: 'production', PORT: '3100', HOSTNAME: '127.0.0.1' },
       max_memory_restart: '300M',
     },

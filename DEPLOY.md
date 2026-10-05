@@ -52,12 +52,15 @@ SubZero's hourly sweep then disables the login, agent tokens and ingest key.
    su postgres -c "createdb -O subzero_demo subzero_demo"
    ```
 
-4. **Redis** for live board updates and signup rate limits. Skip if
-   `redis-cli ping` already answers `PONG`:
+4. **Redis** for live board updates and signup rate limits. The droplet's
+   existing Redis is shared with other apps, so the demo namespaces its
+   socket.io channel with `SOCKET_IO_REDIS_KEY` (pub/sub is server-wide,
+   whatever the database number) and prefixes its own keys with `demo:`.
 
-   ```bash
-   apt-get install -y redis-server   # binds to 127.0.0.1 by default
-   ```
+   **Node.** The droplet's system Node is 18.7, older than Next.js 15 and
+   pnpm 9 allow. The demo runs on the nvm Node 20 at
+   `/root/.nvm/versions/node/v20.20.0`, as safe-parlay, koryo and ascend do;
+   the workflow and `deploy/ecosystem.config.cjs` both pin it.
 
 5. **The demo's `.env`**, at `/root/subzero-demo/.env` (mode 600). The deploy
    links it into the API, and refuses to run without it:
@@ -70,6 +73,7 @@ SubZero's hourly sweep then disables the login, agent tokens and ingest key.
    API_HOST=127.0.0.1
    DATABASE_URL=postgresql://subzero_demo:<DEMO_DB_PASSWORD>@127.0.0.1:5432/subzero_demo
    REDIS_URL=redis://127.0.0.1:6379
+SOCKET_IO_REDIS_KEY=subzero-demo-socket.io
    JWT_ACCESS_SECRET=$(openssl rand -hex 32)
    JWT_REFRESH_SECRET=$(openssl rand -hex 32)
    JWT_ACCESS_TTL=15m
@@ -112,12 +116,13 @@ SubZero's hourly sweep then disables the login, agent tokens and ingest key.
    (The checkout exists after the first deploy; before that, copy the file from
    GitHub.)
 
-7. **SSH access for the workflow.** It uses the organization secrets the SubZero
-   API deploy already uses — `CRYPTOPAY_PORTAL_DO_HOST`, `DO_USERNAME`,
-   `CRYPTOPAY_PORTAL_DO_SSH_KEY` — so there is nothing new to create. If those
-   secrets are limited to selected repositories, add `subzero-demo` to each
-   (Organization settings → Secrets and variables → Actions → the secret →
-   Repository access).
+7. **SSH access for the workflow.** The organization's `CRYPTOPAY_PORTAL_*`
+   secrets are shared with private repositories only, and this repo is public,
+   so the workflow has its own key instead: repository secrets `DEMO_DO_HOST`,
+   `DEMO_DO_USERNAME` and `DEMO_DO_SSH_KEY`. Its public half is the line in
+   `/root/.ssh/authorized_keys` commented
+   `subzero-demo GitHub Actions deploy`. Delete that line to cut the demo's
+   access without touching any other deploy.
 
 Then re-run the latest **Deploy demo.sub-zero.dev** workflow from the Actions
 tab, or push to `main`.

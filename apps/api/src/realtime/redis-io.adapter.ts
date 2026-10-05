@@ -14,7 +14,12 @@ export class RedisIoAdapter extends IoAdapter {
 
   connect() {
     const redis = this.app.get(RedisService);
-    this.adapterConstructor = createAdapter(redis.pub, redis.sub);
+    // Pub/sub channels are global to a Redis server, whatever the database
+    // number. A key of our own keeps another socket.io app sharing the same
+    // Redis from receiving these broadcasts, or sending us its own.
+    this.adapterConstructor = createAdapter(redis.pub, redis.sub, {
+      key: process.env.SOCKET_IO_REDIS_KEY ?? 'socket.io',
+    });
   }
 
   createIOServer(port: number, options?: ServerOptions) {

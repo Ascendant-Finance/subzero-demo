@@ -77,9 +77,9 @@ jobs:
       - name: Copy the web bundle
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.CRYPTOPAY_PORTAL_DO_HOST }}
-          username: ${{ secrets.DO_USERNAME }}
-          key: ${{ secrets.CRYPTOPAY_PORTAL_DO_SSH_KEY }}
+          host: ${{ secrets.DEMO_DO_HOST }}
+          username: ${{ secrets.DEMO_DO_USERNAME }}
+          key: ${{ secrets.DEMO_DO_SSH_KEY }}
           source: web.tgz
           target: /root/subzero-demo/releases
 
@@ -88,14 +88,17 @@ jobs:
         env:
           SHA: ${{ github.sha }}
         with:
-          host: ${{ secrets.CRYPTOPAY_PORTAL_DO_HOST }}
-          username: ${{ secrets.DO_USERNAME }}
-          key: ${{ secrets.CRYPTOPAY_PORTAL_DO_SSH_KEY }}
+          host: ${{ secrets.DEMO_DO_HOST }}
+          username: ${{ secrets.DEMO_DO_USERNAME }}
+          key: ${{ secrets.DEMO_DO_SSH_KEY }}
           envs: SHA
           command_timeout: 20m
           script: |
             set -e
             D=/root/subzero-demo
+            # System Node is 18.7; pnpm 9 and Next.js 15 need newer. Use the nvm
+            # Node 20 other apps on this droplet already run on.
+            export PATH=/root/.nvm/versions/node/v20.20.0/bin:$PATH
             test -f "$D/.env" || { echo "$D/.env is missing — see DEPLOY.md"; exit 1; }
             command -v pnpm >/dev/null || npm install -g pnpm@9.15.9
 
