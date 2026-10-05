@@ -9,7 +9,7 @@ import { getCurrentUser } from '@/lib/auth-store';
 import { loadDemoCredentials } from '@/lib/demo-credentials';
 import { useSessionGate } from '../providers';
 
-type AgentTab = 'claude' | 'cursor' | 'codex';
+type AgentTab = 'claude' | 'hermes' | 'cursor' | 'codex';
 
 function CopyBlock({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -89,6 +89,14 @@ export default function WelcomePage() {
       null,
       2,
     ),
+    hermes: `# ~/.hermes/config.yaml — then run /reload-mcp in Hermes (or restart it)
+mcp_servers:
+  subzero:
+    command: "npx"
+    args: ["-y", "@sub-zero/agent-mcp"]
+    env:
+      SUBZERO_API_URL: "${env.SUBZERO_API_URL}"
+      SUBZERO_AGENT_TOKEN: "<your sz_agent_ token>"`,
     codex: `# ~/.codex/config.toml
 [mcp_servers.subzero]
 command = "npx"
@@ -156,7 +164,8 @@ SubZero dashboard   ${credentials.subzero.email}  /  ${credentials.subzero.passw
         <Step n={3} title="Create an agent credential">
           <p>
             In SubZero, open <strong>Agents</strong> and fill in the form: any name,
-            integration <strong>Custom agent</strong>, permissions <strong>Autonomous</strong>, tick{' '}
+            integration <strong>Hermes</strong> if that is your agent, otherwise{' '}
+            <strong>Custom agent</strong>, permissions <strong>Autonomous</strong>, tick{' '}
             <strong>Let this agent take unassigned tickets</strong>, and project{' '}
             <strong>{demo.projectKey}</strong>. Copy the <code>sz_agent_</code> credential it gives
             you — it is shown once.
@@ -175,6 +184,7 @@ SubZero dashboard   ${credentials.subzero.email}  /  ${credentials.subzero.passw
             {(
               [
                 ['claude', 'Claude Code'],
+                ['hermes', 'Hermes'],
                 ['cursor', 'Cursor / Windsurf / other MCP'],
                 ['codex', 'Codex'],
               ] as const

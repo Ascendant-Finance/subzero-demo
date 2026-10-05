@@ -7,8 +7,8 @@ agent at it and at the queue, and let it finish the job.
 
 ## 1. Connect your agent
 
-The welcome page in your sandbox has the exact setup for Claude Code, Cursor and
-Codex. In short, any MCP-capable agent runs SubZero's adapter:
+The welcome page in your sandbox has the exact setup for Claude Code, Hermes,
+Cursor and Codex. In short, any MCP-capable agent runs SubZero's adapter:
 
 ```bash
 npx -y @sub-zero/agent-mcp
