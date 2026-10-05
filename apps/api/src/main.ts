@@ -27,7 +27,9 @@ async function bootstrap() {
   app.useWebSocketAdapter(adapter);
 
   const port = Number(config.get<string>('API_PORT', '4000'));
-  await app.listen(port, '0.0.0.0');
+  // Loopback in production, where nginx is the only way in; open by default so
+  // local development and CI keep working unchanged.
+  await app.listen(port, config.get<string>('API_HOST', '0.0.0.0'));
   new Logger('bootstrap').log(`api listening on ${port}`);
 }
 

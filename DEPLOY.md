@@ -1,10 +1,9 @@
 # Deploying demo.sub-zero.dev
 
-The demo runs as a Docker Compose stack on the droplet that also runs the
-SubZero API, behind that droplet's nginx. Every push to `main` is deployed by
-`.github/workflows/deploy.yml` once it typechecks and lints: GitHub Actions
-builds both images, pushes them to GHCR, and the droplet pulls and restarts.
-Nothing is built on the droplet.
+The demo runs under PM2 on the droplet that also runs the SubZero API, the same
+way SubZero does: no Docker, the host's Postgres, the host's nginx. Every push
+to `main` is deployed by `.github/workflows/deploy.yml` once it typechecks and
+lints.
 
 The deploy is deliberately not gated on CI. The e2e suite fails until the
 planted faults are fixed — that is the demo — so CI stays red on `main`.
@@ -13,49 +12,78 @@ planted faults are fixed — that is the demo — so CI stays red on `main`.
 
 ```
 prospect ──▶ demo.sub-zero.dev (host nginx, TLS)
-               ├─ /api, /socket.io ─▶ 127.0.0.1:3101  api container
-               └─ everything else ──▶ 127.0.0.1:3100  web container
+               ├─ /api, /socket.io ─▶ 127.0.0.1:3101  pm2: subzero-demo-api
+               └─ everything else ──▶ 127.0.0.1:3100  pm2: subzero-demo-web
 api ──POST /demo/provision──▶ api.sub-zero.dev   (once per signup, shared secret)
 api ──POST /incidents/external──▶ api.sub-zero.dev   (each crash, with that
                                                      prospect's ingest key)
 ```
 
-A signup at `/start` asks SubZero for a project, a login scoped to that project
-and an ingest key, seeds the prospect's workspace here, and replays a normal
-first session so the queue has incidents in it. Every crash a prospect causes is
-routed to their project by `SubZeroNotifier.router`. Sandboxes expire after 14
-days; SubZero's hourly sweep then disables the login, the agent tokens and the
-ingest key.
+What a deploy does:
+
+1. GitHub Actions typechecks and lints, then builds the Next.js web app into a
+   self-contained bundle (a Next build would starve production SubZero on the
+   droplet) and copies it to `/root/subzero-demo/releases/web.tgz`.
+2. Over SSH, `/root/subzero-demo/app` (a checkout of this repo) is reset to the
+   pushed commit, the API is installed and built there — like SubZero's own
+   `npm ci && npm run build` — and its Prisma migrations run.
+3. The web bundle is unpacked to `/root/subzero-demo/web`, PM2 reloads both
+   processes from `deploy/ecosystem.config.cjs`, and the job waits for both to
+   answer.
+
+A signup at `/start` asks SubZero for a project, a login scoped to it and an
+ingest key, seeds the prospect's workspace here, and replays a normal first
+session so the queue already has incidents. Sandboxes expire after 14 days;
+SubZero's hourly sweep then disables the login, agent tokens and ingest key.
 
 ## One-time setup
 
-1. **DNS.** An `A` record for `demo.sub-zero.dev` pointing at the droplet.
+1. **SubZero API.** Merge and deploy the `demo-tenants` PR (it adds
+   `POST /demo/provision`), with `DEMO_PROVISION_SECRET` in its `.env`. Until
+   then signups fail with "Could not set up your SubZero sandbox".
 
-2. **SubZero API.** Deploy the `demo-tenants` branch of subzero-api, which adds
-   `POST /demo/provision` and the tenant-isolation fixes, and add one line to its
-   `.env` on the droplet, then `pm2 restart subzero`:
+2. **DNS.** An `A` record for `demo.sub-zero.dev` pointing at the droplet.
 
-   ```bash
-   DEMO_PROVISION_SECRET=<openssl rand -hex 32>
-   ```
-
-   With the variable unset the route returns 404, so the demo cannot provision.
-
-3. **Docker on the droplet** (skip if `docker compose version` works):
+3. **A database** on the host Postgres, separate from SubZero's:
 
    ```bash
-   curl -fsSL https://get.docker.com | sh
+   DEMO_DB_PASSWORD=$(openssl rand -hex 24); echo "$DEMO_DB_PASSWORD"
+   su postgres -c "psql -c \"CREATE ROLE subzero_demo LOGIN PASSWORD '$DEMO_DB_PASSWORD'\""
+   su postgres -c "createdb -O subzero_demo subzero_demo"
    ```
 
-4. **The stack's secrets**, in `/root/subzero-demo/.env` (mode 600):
+4. **Redis** for live board updates and signup rate limits. Skip if
+   `redis-cli ping` already answers `PONG`:
+
+   ```bash
+   apt-get install -y redis-server   # binds to 127.0.0.1 by default
+   ```
+
+5. **The demo's `.env`**, at `/root/subzero-demo/.env` (mode 600). The deploy
+   links it into the API, and refuses to run without it:
 
    ```bash
    mkdir -p /root/subzero-demo && cd /root/subzero-demo
    cat > .env <<EOF
-   POSTGRES_PASSWORD=$(openssl rand -hex 24)
+   NODE_ENV=production
+   API_PORT=3101
+   API_HOST=127.0.0.1
+   DATABASE_URL=postgresql://subzero_demo:<DEMO_DB_PASSWORD>@127.0.0.1:5432/subzero_demo
+   REDIS_URL=redis://127.0.0.1:6379
    JWT_ACCESS_SECRET=$(openssl rand -hex 32)
    JWT_REFRESH_SECRET=$(openssl rand -hex 32)
-   DEMO_PROVISION_SECRET=<the same value as in the SubZero .env>
+   JWT_ACCESS_TTL=15m
+   JWT_REFRESH_TTL=14d
+   WEB_ORIGIN=https://demo.sub-zero.dev
+   COOKIE_DOMAIN=demo.sub-zero.dev
+   UPLOAD_MAX_BYTES=5242880
+   DEMO_MODE=true
+   SUBZERO_URL=https://api.sub-zero.dev/incidents/external
+   SUBZERO_DEMO_PROVISION_URL=https://api.sub-zero.dev/demo/provision
+   DEMO_PROVISION_SECRET=<the same value as in the SubZero API .env>
+   DEMO_REPO_URL=https://github.com/Ascendant-Finance/subzero-demo
+   SUBZERO_DASHBOARD_URL=https://dashboard.sub-zero.dev
+   SUBZERO_PUBLIC_API_URL=https://api.sub-zero.dev
    # optional
    DEMO_LEAD_WEBHOOK_URL=
    SPACES_ENDPOINT=
@@ -68,33 +96,38 @@ ingest key.
    chmod 600 .env
    ```
 
-   Without the Spaces values attachments are disabled; everything else works.
+   `API_HOST=127.0.0.1` matters: without it the API listens on every interface
+   and port 3101 is reachable from the internet, around nginx. Without the
+   Spaces values attachments are disabled; everything else works.
 
-5. **nginx and TLS:**
+6. **nginx and TLS:**
 
    ```bash
-   cp deploy/nginx/demo.sub-zero.dev.conf /etc/nginx/sites-available/
+   cp /root/subzero-demo/app/deploy/nginx/demo.sub-zero.dev.conf /etc/nginx/sites-available/
    ln -s ../sites-available/demo.sub-zero.dev.conf /etc/nginx/sites-enabled/
    nginx -t && systemctl reload nginx
    certbot --nginx -d demo.sub-zero.dev
    ```
 
-6. **Repository secrets** (Settings → Secrets and variables → Actions):
-   `DEMO_DO_HOST`, `DEMO_DO_USERNAME`, `DEMO_DO_SSH_KEY` — the same droplet and
-   key the SubZero API deploy uses.
+   (The checkout exists after the first deploy; before that, copy the file from
+   GitHub.)
 
-7. **Image visibility.** After the first deploy run pushes the images, make the
-   `subzero-demo-api` and `subzero-demo-web` packages public (GitHub → the
-   package → Package settings → Change visibility). They hold no secrets — the
-   web image bakes in only public URLs — and public images let the droplet pull
-   without a registry login.
+7. **SSH access for the workflow.** It uses the organization secrets the SubZero
+   API deploy already uses — `CRYPTOPAY_PORTAL_DO_HOST`, `DO_USERNAME`,
+   `CRYPTOPAY_PORTAL_DO_SSH_KEY` — so there is nothing new to create. If those
+   secrets are limited to selected repositories, add `subzero-demo` to each
+   (Organization settings → Secrets and variables → Actions → the secret →
+   Repository access).
+
+Then re-run the latest **Deploy demo.sub-zero.dev** workflow from the Actions
+tab, or push to `main`.
 
 ## Operating it
 
 ```bash
-cd /root/subzero-demo
-docker compose -f docker-compose.demo.yml ps
-docker compose -f docker-compose.demo.yml logs -f api
+pm2 status
+pm2 logs subzero-demo-api
+pm2 logs subzero-demo-web
 ```
 
 Leads are in SubZero's `demo_tenants` table (and in the webhook, if set):
@@ -104,4 +137,4 @@ SELECT email, name, company, created_at, expires_at FROM demo_tenants ORDER BY c
 ```
 
 Limits: 5 signups per IP per hour and 200 per day, set by
-`DEMO_SIGNUPS_PER_IP_PER_HOUR` and `DEMO_SIGNUPS_PER_DAY`.
+`DEMO_SIGNUPS_PER_IP_PER_HOUR` and `DEMO_SIGNUPS_PER_DAY` in the `.env`.

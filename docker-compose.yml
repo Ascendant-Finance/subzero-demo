@@ -1,3 +1,5 @@
+# Local development only: Postgres and Redis for running the app on your
+# machine (see DEMO.md). demo.sub-zero.dev itself runs without Docker.
 services:
   postgres:
     image: postgres:16-alpine
@@ -29,43 +31,6 @@ services:
       timeout: 5s
       retries: 10
 
-  api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      NODE_ENV: development
-      API_PORT: 4000
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/trelloclone
-      REDIS_URL: redis://redis:6379
-      JWT_ACCESS_SECRET: change_me_access
-      JWT_REFRESH_SECRET: change_me_refresh
-      JWT_ACCESS_TTL: 15m
-      JWT_REFRESH_TTL: 30d
-      WEB_ORIGIN: http://localhost:3000
-      COOKIE_DOMAIN: localhost
-      UPLOAD_MAX_BYTES: 26214400
-    ports:
-      - '4000:4000'
-
-  web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: http://localhost:4000
-        NEXT_PUBLIC_WS_URL: http://localhost:4000
-    restart: unless-stopped
-    depends_on:
-      - api
-    ports:
-      - '3000:3000'
 
 volumes:
   pgdata:

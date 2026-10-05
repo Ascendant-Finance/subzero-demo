@@ -85,6 +85,5 @@ or `board:lists_reordered`.
 
 ## Deploying
 
-demo.sub-zero.dev is deployed by `.github/workflows/deploy.yml`; see
-[DEPLOY.md](DEPLOY.md). To run your own copy, `docker-compose.prod.yml` builds
-and serves the whole stack behind nginx. The API applies migrations on boot.
+demo.sub-zero.dev is deployed by `.github/workflows/deploy.yml` to a droplet
+running PM2, Postgres and Redis behind nginx; see [DEPLOY.md](DEPLOY.md).

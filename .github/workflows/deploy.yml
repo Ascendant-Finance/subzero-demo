@@ -4,9 +4,9 @@ name: Deploy demo.sub-zero.dev
 # faults, so "CI passed" would mean "never deploy". The gate below is what a
 # deploy actually needs — it compiles, it lints, it builds.
 #
-# Images are built here and pushed to GHCR; the droplet only pulls and restarts,
-# because it also serves production SubZero and a Next.js build there would
-# starve it.
+# Same shape as the SubZero API deploy, on the same droplet: PM2 and the host's
+# Postgres, no Docker. The one difference is the web app, which is built here
+# and copied over, because a Next.js build would starve production SubZero.
 on:
   push:
     branches: [main]
@@ -18,10 +18,6 @@ concurrency:
 
 permissions:
   contents: read
-  packages: write
-
-env:
-  IMAGE_TAG: ${{ github.sha }}
 
 jobs:
   gate:
@@ -39,84 +35,106 @@ jobs:
       - run: pnpm -r typecheck
       - run: pnpm -r lint
 
-  images:
+  web:
     needs: gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: docker/build-push-action@v6
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @trello-clone/shared... --filter web...
+      - run: pnpm --filter @trello-clone/shared build
+      - name: Build the standalone web bundle
+        env:
+          NEXT_PUBLIC_API_URL: https://demo.sub-zero.dev
+          NEXT_PUBLIC_WS_URL: https://demo.sub-zero.dev
+          NEXT_PUBLIC_DEMO_MODE: 'true'
+        run: pnpm --filter web build
+      - name: Package it
+        run: |
+          # Standalone output leaves static assets and public/ for the host to serve;
+          # put them where server.js expects them so the bundle is self-contained.
+          cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static
+          cp -r apps/web/public apps/web/.next/standalone/apps/web/public
+          tar -czf web.tgz -C apps/web/.next/standalone .
+      - uses: actions/upload-artifact@v4
         with:
-          context: .
-          file: apps/api/Dockerfile
-          push: true
-          tags: ghcr.io/ascendant-finance/subzero-demo-api:${{ env.IMAGE_TAG }}
-          cache-from: type=gha,scope=api
-          cache-to: type=gha,mode=max,scope=api
-
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          push: true
-          tags: ghcr.io/ascendant-finance/subzero-demo-web:${{ env.IMAGE_TAG }}
-          build-args: |
-            NEXT_PUBLIC_API_URL=https://demo.sub-zero.dev
-            NEXT_PUBLIC_WS_URL=https://demo.sub-zero.dev
-            NEXT_PUBLIC_DEMO_MODE=true
-          cache-from: type=gha,scope=web
-          cache-to: type=gha,mode=max,scope=web
+          name: web
+          path: web.tgz
+          retention-days: 3
 
   deploy:
-    needs: images
+    needs: web
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
-          sparse-checkout: deploy
+          name: web
 
-      - name: Ship the compose file
+      - name: Copy the web bundle
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.DEMO_DO_HOST }}
-          username: ${{ secrets.DEMO_DO_USERNAME }}
-          key: ${{ secrets.DEMO_DO_SSH_KEY }}
-          source: deploy/docker-compose.demo.yml
-          target: /root/subzero-demo
-          strip_components: 1
+          host: ${{ secrets.CRYPTOPAY_PORTAL_DO_HOST }}
+          username: ${{ secrets.DO_USERNAME }}
+          key: ${{ secrets.CRYPTOPAY_PORTAL_DO_SSH_KEY }}
+          source: web.tgz
+          target: /root/subzero-demo/releases
 
-      - name: Pull and restart
+      - name: Build the API, migrate, restart
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          SHA: ${{ github.sha }}
         with:
-          host: ${{ secrets.DEMO_DO_HOST }}
-          username: ${{ secrets.DEMO_DO_USERNAME }}
-          key: ${{ secrets.DEMO_DO_SSH_KEY }}
-          envs: IMAGE_TAG
-          command_timeout: 15m
+          host: ${{ secrets.CRYPTOPAY_PORTAL_DO_HOST }}
+          username: ${{ secrets.DO_USERNAME }}
+          key: ${{ secrets.CRYPTOPAY_PORTAL_DO_SSH_KEY }}
+          envs: SHA
+          command_timeout: 20m
           script: |
             set -e
-            cd /root/subzero-demo
-            # .env holds the secrets (see DEPLOY.md); IMAGE_TAG is the only thing
-            # this job changes in it.
-            test -f .env || { echo "/root/subzero-demo/.env is missing — see DEPLOY.md"; exit 1; }
-            sed -i '/^IMAGE_TAG=/d' .env && echo "IMAGE_TAG=$IMAGE_TAG" >> .env
-            docker compose -f docker-compose.demo.yml pull
-            docker compose -f docker-compose.demo.yml up -d --remove-orphans
-            docker image prune -f >/dev/null
+            D=/root/subzero-demo
+            test -f "$D/.env" || { echo "$D/.env is missing — see DEPLOY.md"; exit 1; }
+            command -v pnpm >/dev/null || npm install -g pnpm@9.15.9
 
+            echo "==> Code at $SHA"
+            [ -d "$D/app/.git" ] || git clone -q https://github.com/Ascendant-Finance/subzero-demo.git "$D/app"
+            cd "$D/app"
+            git fetch -q origin main
+            git reset -q --hard "$SHA"
+            ln -sf "$D/.env" apps/api/.env
+
+            echo "==> Build the API"
+            pnpm install --frozen-lockfile --filter api... --filter @trello-clone/shared...
+            pnpm --filter @trello-clone/shared build
+            pnpm --filter api exec prisma generate
+            pnpm --filter api build
+
+            echo "==> Migrate"
+            (cd apps/api && set -a && . ./.env && set +a && pnpm exec prisma migrate deploy)
+
+            echo "==> Swap in the web bundle"
+            rm -rf "$D/web.new" && mkdir -p "$D/web.new"
+            tar -xzf "$D/releases/web.tgz" -C "$D/web.new"
+            rm -rf "$D/web.old"
+            [ -d "$D/web" ] && mv "$D/web" "$D/web.old"
+            mv "$D/web.new" "$D/web"
+
+            echo "==> Restart"
+            pm2 startOrReload "$D/app/deploy/ecosystem.config.cjs" --update-env
+            pm2 save
+
+            echo "==> Health check"
             # 401 from /auth/me means the API is up and answering.
             for i in $(seq 1 36); do
-              code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3101/api/auth/me || true)
+              api=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3101/api/auth/me || true)
               web=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/start || true)
-              if [ "$code" = "401" ] && [ "$web" = "200" ]; then echo "healthy after $((i*5))s"; exit 0; fi
+              if [ "$api" = "401" ] && [ "$web" = "200" ]; then echo "healthy after $((i*5))s"; exit 0; fi
               sleep 5
             done
-            echo "demo did not become healthy (api=$code web=$web)"
-            docker compose -f docker-compose.demo.yml logs --tail=80 api web
+            echo "demo did not become healthy (api=$api web=$web)"
+            pm2 logs subzero-demo-api --lines 60 --nostream || true
+            pm2 logs subzero-demo-web --lines 30 --nostream || true
             exit 1
