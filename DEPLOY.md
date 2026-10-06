@@ -90,6 +90,7 @@ SOCKET_IO_REDIS_KEY=subzero-demo-socket.io
    SUBZERO_PUBLIC_API_URL=https://api.sub-zero.dev
    # optional
    DEMO_LEAD_WEBHOOK_URL=
+   KORYO_CAPTURE_KEY=<kor_cap_… from Koryo, SubZero workspace, slug subzero-demo>
    SPACES_ENDPOINT=
    SPACES_REGION=
    SPACES_BUCKET=

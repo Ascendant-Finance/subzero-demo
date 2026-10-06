@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { AuthService } from '../auth/auth.service';
 import { AppError } from '../common/app-error';
+import { sendToKoryo } from '../common/koryo';
 import { SubZeroNotifier } from '../common/sub-zero.notifier';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -85,6 +86,17 @@ export class DemoService implements OnModuleInit {
     const apiBase = `http://127.0.0.1:${this.config.get<string>('API_PORT', '4000')}/api`;
     setTimeout(() => void warmUp(apiBase, session.accessToken, seed), 2_000).unref();
     void this.announceLead(body, sandbox.projectKey);
+    // `website` is the honeypot: it never goes to Koryo, not even as `domain`.
+    void sendToKoryo(
+      {
+        email: body.email,
+        name: body.name,
+        company,
+        context: { page: '/start', product: 'subzero-demo', project: sandbox.projectKey },
+        ip: ip === 'unknown' ? undefined : ip,
+      },
+      { key: this.config.get<string>('KORYO_CAPTURE_KEY'), url: this.config.get<string>('KORYO_CAPTURE_URL') },
+    );
 
     this.logger.log(`Demo ready for ${body.email} (${sandbox.projectKey})`);
     return {
