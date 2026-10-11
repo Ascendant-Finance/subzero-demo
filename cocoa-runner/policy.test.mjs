@@ -13,3 +13,11 @@ test('sandbox has no network, writable root, capabilities or shared credentials'
  assert(!args.includes('--privileged'));assert(!args.includes('--env'));assert(!args.some(x=>x.includes('docker.sock')));
  assert.throws(()=>containerArgs('cocoa-demo-abcd','image',null,'runc'));
 });
+
+test('standard Docker requires explicit opt-in and retains all containment flags',()=>{
+ const standard=containerArgs('cocoa-demo-abcd','image',null,'runc',true);
+ const isolated=containerArgs('cocoa-demo-abcd','image',null,'runsc');
+ assert.deepEqual(standard,isolated.map(x=>x==='runsc'?'runc':x));
+ assert.throws(()=>containerArgs('cocoa-demo-abcd','image',null,'runc'));
+ assert.throws(()=>containerArgs('cocoa-demo-abcd','image',null,'unknown',true));
+});
