@@ -51,12 +51,13 @@ export default function StartPage() {
             <span className="text-lg font-semibold">Stacks × SubZero</span>
           </div>
           <h1 className="mb-3 text-3xl font-bold leading-tight">
-            Watch Cocoa turn a real bug into a verified fix.
+            Watch Cocoa diagnose a real bug and apply a reviewed repair.
           </h1>
           <p className="mb-4 text-[var(--color-text-muted)]">
             Stacks is a small Trello clone with real bugs in its API. When it breaks, SubZero opens
             the incident on its own. Start the guided Cocoa demo with one click, or connect your own
-            coding agent. Cocoa works in a private copy and shows you the fix and its test results.
+            coding agent. Cocoa selects a reviewed repair for your demo board, then lets you try the
+            repaired feature.
           </p>
           <ul className="space-y-2 text-sm text-[var(--color-text-muted)]">
             <li>• Your own SubZero sandbox and dashboard login, nobody else&apos;s tickets</li>

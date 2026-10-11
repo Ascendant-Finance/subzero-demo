@@ -101,7 +101,20 @@ export class CardsService {
 
     const data: Record<string, unknown> = { ...body };
     if (body.dueAt !== undefined) data.dueAt = body.dueAt ? new Date(body.dueAt) : null;
-    if (body.description !== undefined) data.description = body.description!.trim();
+    if (body.description !== undefined) {
+      // Only this prospect's explicitly repaired board gets the reviewed behavior.
+      const repair =
+        body.description === null
+          ? await this.prisma.demoTenant.findFirst({
+              where: {
+                userId,
+                cocoaRepairBoardId: card.boardId,
+                expiresAt: { gt: new Date() },
+              },
+            })
+          : null;
+      data.description = repair ? null : body.description!.trim();
+    }
 
     const { updated, activity } = await this.prisma.$transaction(async (tx) => {
       const row = await tx.card.update({ where: { id: cardId }, data });

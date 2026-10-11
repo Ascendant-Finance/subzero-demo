@@ -321,6 +321,10 @@ model Invite {
 /// A prospect provisioned from the demo signup. Their SubZero project and the
 /// ingest key that routes this user's crashes into it.
 model DemoTenant {
+  cocoaRepairBoardId String?
+  cocoaRepairRunId String?
+  cocoaSampleCardId String?
+  cocoaVerification Json?
   id                 String   @id @default(cuid())
   userId             String   @unique
   company            String?

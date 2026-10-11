@@ -47,6 +47,11 @@ export class DemoController {
     return this.cocoa.request(user.id, 'preview');
   }
 
+  @Post('cocoa/reset')
+  cocoaReset(@CurrentUser() user: AuthUser) {
+    return this.cocoa.request(user.id, 'reset');
+  }
+
   @Get('me')
   me(@CurrentUser() user: AuthUser) {
     return this.demo.details(user.id);

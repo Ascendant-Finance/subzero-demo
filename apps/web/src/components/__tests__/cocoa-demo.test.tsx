@@ -1,7 +1,12 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CocoaDemo } from '../cocoa-demo';
-const api = vi.hoisted(() => ({ cocoa: vi.fn(), startCocoa: vi.fn(), previewCocoa: vi.fn() }));
+const api = vi.hoisted(() => ({
+  cocoa: vi.fn(),
+  startCocoa: vi.fn(),
+  previewCocoa: vi.fn(),
+  resetCocoa: vi.fn(),
+}));
 vi.mock('@/lib/api', () => ({ trello: { demo: api } }));
 vi.mock('@/lib/api-client', () => ({ ApiError: class extends Error {} }));
 afterEach(cleanup);
@@ -17,10 +22,14 @@ it('starts a guided run without credentials and shows verified evidence and prev
     available: true,
     incidentReady: true,
     attemptsRemaining: 1,
+    repairApplied: true,
+    boardId: 'board',
+    sampleCardId: 'card',
+    preview: null,
     run: {
       id: 'one',
-      status: 'verified',
-      stage: 'verified',
+      status: 'completed',
+      stage: 'completed',
       ticketCode: 'D1-1',
       cause: 'Null was treated as text.',
       summary: 'Preserve null.',
@@ -31,13 +40,13 @@ it('starts a guided run without credentials and shows verified evidence and prev
   });
   render(<CocoaDemo />);
   fireEvent.click(await screen.findByRole('button', { name: 'Let Cocoa fix this' }));
-  await screen.findByText('The fix passed verification. Try it below.');
+  await screen.findByText('Your reviewed repair is applied and checked.');
   expect(api.startCocoa).toHaveBeenCalledOnce();
-  expect(screen.getByText(/shared demo app has not been modified/)).toBeTruthy();
+  expect(screen.getByText(/repair reviewed and tested by our team/)).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Clear the sample card’s description' })).toBeTruthy();
   expect(screen.queryByRole('textbox')).toBeNull();
 });
-it('an unavailable runner offers no start button', async () => {
+it('an unavailable provider offers no start button', async () => {
   api.cocoa.mockResolvedValue({
     available: false,
     incidentReady: false,

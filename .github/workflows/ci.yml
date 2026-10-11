@@ -87,6 +87,9 @@ jobs:
       - name: Web unit tests
         run: pnpm --filter web test
 
+      - name: Guided Cocoa repair integration
+        run: pnpm --filter api test:e2e -- --runInBand cocoa-guided.e2e-spec
+
       - name: API e2e tests
         run: pnpm --filter api test:e2e
 
