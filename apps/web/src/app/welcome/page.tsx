@@ -1,5 +1,6 @@
 'use client';
 
+import { CocoaDemo } from '@/components/cocoa-demo';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { TopBar } from '@/components/top-bar';
@@ -82,7 +83,10 @@ export default function WelcomePage() {
           subzero: {
             command: 'npx',
             args: ['-y', '@sub-zero/agent-mcp'],
-            env: { SUBZERO_API_URL: env.SUBZERO_API_URL, SUBZERO_AGENT_TOKEN: '<your sz_agent_ token>' },
+            env: {
+              SUBZERO_API_URL: env.SUBZERO_API_URL,
+              SUBZERO_AGENT_TOKEN: '<your sz_agent_ token>',
+            },
           },
         },
       },
@@ -121,93 +125,114 @@ Do not modify apps/api/src/common/sub-zero.notifier.ts.`;
           </p>
         </header>
 
-        {credentials ? (
-          <div className="rounded-[var(--radius)] border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-            <p className="mb-2 font-semibold">Save these now — they are only shown once.</p>
-            <CopyBlock
-              text={`Stacks (this app)   ${email}  /  ${credentials.trelloPassword}
+        <CocoaDemo />
+
+        <details className="rounded border border-[var(--color-border)] p-4">
+          <summary className="cursor-pointer font-semibold">Save your demo login</summary>
+          <div className="mt-4 space-y-4">
+            {credentials ? (
+              <div className="rounded-[var(--radius)] border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                <p className="mb-2 font-semibold">Save these now — they are only shown once.</p>
+                <CopyBlock
+                  text={`Stacks (this app)   ${email}  /  ${credentials.trelloPassword}
 SubZero dashboard   ${credentials.subzero.email}  /  ${credentials.subzero.password}`}
-            />
+                />
+              </div>
+            ) : (
+              <p className="rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-sm text-[var(--color-text-muted)]">
+                Your passwords were shown once, when you signed up. Lost them? Email us and
+                we&apos;ll reset your sandbox.
+              </p>
+            )}
           </div>
-        ) : (
-          <p className="rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-sm text-[var(--color-text-muted)]">
-            Your passwords were shown once, when you signed up. Lost them? Email us and we&apos;ll
-            reset your sandbox.
-          </p>
-        )}
+        </details>
+        <details className="rounded border border-[var(--color-border)] p-4">
+          <summary className="cursor-pointer font-semibold">
+            Use my own agent · advanced setup
+          </summary>
+          <div className="mt-4 space-y-4">
+            <Step n={1} title="Your workspace has already broken">
+              <p>
+                We used your new workspace the way a team does on day one — opened the boards,
+                edited a card, started a checklist, filtered by due date. Five things crashed, and
+                each crash filed its own incident in SubZero. Nobody typed a ticket.
+              </p>
+              <p>
+                <Link href="/" className="font-semibold text-[var(--color-accent)]">
+                  Open your boards
+                </Link>{' '}
+                and click around — anything else that breaks lands in the same queue.
+              </p>
+            </Step>
 
-        <Step n={1} title="Your workspace has already broken">
-          <p>
-            We used your new workspace the way a team does on day one — opened the boards, edited
-            a card, started a checklist, filtered by due date. Five things crashed, and each crash
-            filed its own incident in SubZero. Nobody typed a ticket.
-          </p>
-          <p>
-            <Link href="/" className="font-semibold text-[var(--color-accent)]">
-              Open your boards
-            </Link>{' '}
-            and click around — anything else that breaks lands in the same queue.
-          </p>
-        </Step>
+            <Step n={2} title="See the incidents in SubZero">
+              <p>
+                Sign in at{' '}
+                <a
+                  href={demo.dashboardUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-[var(--color-accent)]"
+                >
+                  {demo.dashboardUrl.replace(/^https?:\/\//, '')}
+                </a>{' '}
+                with the SubZero login above. Each incident has the route, the stack and the user
+                who hit it.
+              </p>
+            </Step>
 
-        <Step n={2} title="See the incidents in SubZero">
-          <p>
-            Sign in at{' '}
-            <a href={demo.dashboardUrl} target="_blank" rel="noreferrer" className="font-semibold text-[var(--color-accent)]">
-              {demo.dashboardUrl.replace(/^https?:\/\//, '')}
-            </a>{' '}
-            with the SubZero login above. Each incident has the route, the stack and the user who
-            hit it.
-          </p>
-        </Step>
+            <Step n={3} title="Create an agent credential">
+              <p>
+                In SubZero, open <strong>Agents</strong> and fill in the form: any name, integration{' '}
+                <strong>Hermes</strong> if that is your agent, otherwise{' '}
+                <strong>Custom agent</strong>, permissions <strong>Autonomous</strong>, tick{' '}
+                <strong>Let this agent take unassigned tickets</strong>, and project{' '}
+                <strong>{demo.projectKey}</strong>. Copy the <code>sz_agent_</code> credential it
+                gives you — it is shown once.
+              </p>
+            </Step>
 
-        <Step n={3} title="Create an agent credential">
-          <p>
-            In SubZero, open <strong>Agents</strong> and fill in the form: any name,
-            integration <strong>Hermes</strong> if that is your agent, otherwise{' '}
-            <strong>Custom agent</strong>, permissions <strong>Autonomous</strong>, tick{' '}
-            <strong>Let this agent take unassigned tickets</strong>, and project{' '}
-            <strong>{demo.projectKey}</strong>. Copy the <code>sz_agent_</code> credential it gives
-            you — it is shown once.
-          </p>
-        </Step>
+            <Step n={4} title="Get the code">
+              <CopyBlock text={`git clone ${demo.repoUrl}\ncd ${repoDir}`} />
+              <p>
+                <code>DEMO.md</code> in the repo shows how to run it locally, so your agent can
+                reproduce each fault.
+              </p>
+            </Step>
 
-        <Step n={4} title="Get the code">
-          <CopyBlock text={`git clone ${demo.repoUrl}\ncd ${repoDir}`} />
-          <p>
-            <code>DEMO.md</code> in the repo shows how to run it locally, so your agent can reproduce each fault.
-          </p>
-        </Step>
+            <Step n={5} title="Connect your agent">
+              <div className="flex gap-2">
+                {(
+                  [
+                    ['claude', 'Claude Code'],
+                    ['hermes', 'Hermes'],
+                    ['cursor', 'Cursor / Windsurf / other MCP'],
+                    ['codex', 'Codex'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setTab(key)}
+                    className={`rounded-[var(--radius-sm)] px-3 py-1 text-xs font-semibold ${
+                      tab === key
+                        ? 'bg-[var(--color-accent)] text-white'
+                        : 'bg-black/5 hover:bg-black/10'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <CopyBlock text={snippets[tab]} />
+            </Step>
 
-        <Step n={5} title="Connect your agent">
-          <div className="flex gap-2">
-            {(
-              [
-                ['claude', 'Claude Code'],
-                ['hermes', 'Hermes'],
-                ['cursor', 'Cursor / Windsurf / other MCP'],
-                ['codex', 'Codex'],
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setTab(key)}
-                className={`rounded-[var(--radius-sm)] px-3 py-1 text-xs font-semibold ${
-                  tab === key ? 'bg-[var(--color-accent)] text-white' : 'bg-black/5 hover:bg-black/10'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            <Step n={6} title="Hand it the queue">
+              <p>Run this in the cloned repo, then watch the tickets close in SubZero:</p>
+              <CopyBlock text={prompt} />
+            </Step>
           </div>
-          <CopyBlock text={snippets[tab]} />
-        </Step>
-
-        <Step n={6} title="Hand it the queue">
-          <p>Run this in the cloned repo, then watch the tickets close in SubZero:</p>
-          <CopyBlock text={prompt} />
-        </Step>
+        </details>
       </main>
     </div>
   );

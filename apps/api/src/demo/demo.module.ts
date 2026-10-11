@@ -1,3 +1,4 @@
+import { DemoCocoaService } from './demo-cocoa.service';
 import { Module } from '@nestjs/common';
 
 import { AuthModule } from '../auth/auth.module';
@@ -8,6 +9,6 @@ import { SubZeroProvisioner } from './subzero-provisioner';
 @Module({
   imports: [AuthModule],
   controllers: [DemoController],
-  providers: [DemoService, SubZeroProvisioner],
+  providers: [DemoService, SubZeroProvisioner, DemoCocoaService],
 })
 export class DemoModule {}

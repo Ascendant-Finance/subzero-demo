@@ -27,7 +27,12 @@ export default function StartPage() {
     setBusy(true);
     setError(null);
     try {
-      const { accessToken, user, demo } = await trello.demo.signup({ name, email, company, website });
+      const { accessToken, user, demo } = await trello.demo.signup({
+        name,
+        email,
+        company,
+        website,
+      });
       saveDemoCredentials({ trelloPassword: demo.trelloPassword, subzero: demo.subzero });
       setSession(accessToken, user);
       router.replace('/welcome');
@@ -46,18 +51,20 @@ export default function StartPage() {
             <span className="text-lg font-semibold">Stacks × SubZero</span>
           </div>
           <h1 className="mb-3 text-3xl font-bold leading-tight">
-            Watch your coding agent clear a production queue.
+            Watch Cocoa turn a real bug into a verified fix.
           </h1>
           <p className="mb-4 text-[var(--color-text-muted)]">
             Stacks is a small Trello clone with real bugs in its API. When it breaks, SubZero opens
-            the incident on its own. You connect the agent you already use — Claude Code, Cursor,
-            Codex or your own — and let it take the tickets, fix the code and close them out.
+            the incident on its own. Start the guided Cocoa demo with one click, or connect your own
+            coding agent. Cocoa works in a private copy and shows you the fix and its test results.
           </p>
           <ul className="space-y-2 text-sm text-[var(--color-text-muted)]">
             <li>• Your own SubZero sandbox and dashboard login, nobody else&apos;s tickets</li>
             <li>• A workspace that has already hit five production faults</li>
-            <li>• The full source on GitHub, to point your agent at</li>
-            <li>• About 20 minutes. Free. Sandbox closes after 14 days.</li>
+            <li>• A free guided Cocoa fix and one retry when hosted demos are available</li>
+            <li>
+              • No terminal, API key or payment details for Cocoa. Sandbox closes after 14 days.
+            </li>
           </ul>
         </section>
 
@@ -68,20 +75,45 @@ export default function StartPage() {
           <h2 className="mb-5 text-lg font-semibold">Start your demo</h2>
 
           <label className="mb-4 block">
-            <span className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">Name</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={80} autoComplete="name" className={field} />
+            <span className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">
+              Name
+            </span>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              maxLength={80}
+              autoComplete="name"
+              className={field}
+            />
           </label>
 
           <label className="mb-4 block">
-            <span className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">Work email</span>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required maxLength={160} autoComplete="email" className={field} />
+            <span className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">
+              Work email
+            </span>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              maxLength={160}
+              autoComplete="email"
+              className={field}
+            />
           </label>
 
           <label className="mb-5 block">
             <span className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">
               Company <span className="font-normal">(optional)</span>
             </span>
-            <input value={company} onChange={(e) => setCompany(e.target.value)} maxLength={120} autoComplete="organization" className={field} />
+            <input
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              maxLength={120}
+              autoComplete="organization"
+              className={field}
+            />
           </label>
 
           {/* Honeypot: invisible to people, irresistible to form bots. */}

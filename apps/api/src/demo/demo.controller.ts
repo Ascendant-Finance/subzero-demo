@@ -1,3 +1,4 @@
+import { DemoCocoaService } from './demo-cocoa.service';
 import { Body, Controller, Get, HttpCode, Post, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
@@ -13,6 +14,7 @@ import { DemoService, demoSignupSchema, type DemoSignup } from './demo.service';
 export class DemoController {
   constructor(
     private readonly demo: DemoService,
+    private readonly cocoa: DemoCocoaService,
     private readonly config: ConfigService,
     private readonly tokens: TokenService,
   ) {}
@@ -28,6 +30,21 @@ export class DemoController {
     const { refreshToken, ...rest } = await this.demo.signup(body, req.ip ?? 'unknown');
     setRefreshCookie(res, refreshToken, this.config, this.tokens);
     return rest;
+  }
+
+  @Get('cocoa')
+  cocoaStatus(@CurrentUser() user: AuthUser) {
+    return this.cocoa.request(user.id, 'status');
+  }
+
+  @Post('cocoa/start')
+  cocoaStart(@CurrentUser() user: AuthUser) {
+    return this.cocoa.request(user.id, 'start');
+  }
+
+  @Post('cocoa/preview')
+  cocoaPreview(@CurrentUser() user: AuthUser) {
+    return this.cocoa.request(user.id, 'preview');
   }
 
   @Get('me')

@@ -144,3 +144,104 @@ SELECT email, name, company, created_at, expires_at FROM demo_tenants ORDER BY c
 
 Limits: 5 signups per IP per hour and 200 per day, set by
 `DEMO_SIGNUPS_PER_IP_PER_HOUR` and `DEMO_SIGNUPS_PER_DAY` in the `.env`.
+
+## Guided Cocoa demo (disabled by default)
+
+The welcome page now offers one hosted fix and one explicit retry. The first
+scenario clears a card description. The existing MCP setup remains under
+**Use my own agent**. Cocoa changes a disposable private copy; the shared Stacks
+application keeps its planted bugs for subsequent prospects. A five-minute
+preview reruns the repaired feature, and the patch/evidence remain readable
+until the prospect's demo expires.
+
+This is a separate demo allowance, not a free subscription or bypass of paid
+Cocoa's workspace billing. The demo frontend never receives a model key, runner
+secret or agent credential. The API derives the project from the authenticated
+prospect, not a project supplied by their browser.
+
+Deploy the companion SubZero API migration/module before this UI. The existing
+`DEMO_PROVISION_SECRET` connects the demo backend to `/demo/cocoa/:project`.
+No extra credentials belong in the browser or this demo's `.env`.
+
+Configure on **SubZero API**:
+
+```
+DEMO_COCOA_ENABLED=false
+DEMO_COCOA_API_KEY=<separate platform-funded OpenAI project key>
+DEMO_COCOA_MODEL=<compatible text model>
+DEMO_COCOA_RUNNER_SECRET=<random secret at least 32 characters>
+DEMO_COCOA_REVISION=<full immutable SHA of this demo repository>
+DEMO_COCOA_PROSPECT_CENTS=100
+DEMO_COCOA_DAILY_CENTS=2500
+DEMO_COCOA_INPUT_USD_PER_MILLION=<verified upper-bound input price>
+DEMO_COCOA_OUTPUT_USD_PER_MILLION=<verified upper-bound output price>
+```
+
+The $1 prospect and $25 daily values are initial configurable defaults, not
+Stripe prices. Each of two attempts reserves half the prospect allowance before
+queueing; reservations are never refunded automatically. One model request per
+attempt uses bounded input and output. Unknown/time-out results require the
+prospect's explicit retry and still consume the reservation. Prices must cover
+all billable tokens for the configured model, including reasoning tokens where
+applicable. Also configure the provider project's own spending controls.
+
+The coding runner belongs on a **separate disposable Linux VM**, with Docker
+and the `runsc` (gVisor) runtime. Never give the demo API a Docker socket or run
+model-generated application code directly on the SubZero production server.
+Allow outbound HTTPS from the trusted runner to SubZero. The application
+containers themselves have no external network, no provider keys, a read-only
+root, no Linux capabilities, and per-container CPU/memory/PID limits. Their
+Postgres and Redis are temporary processes in the same isolated container.
+Plan at least 4 GB RAM for the runner VM/builds; the application container is
+limited to 1.5 GB, one CPU and 256 tasks. One coding run/preview is active globally.
+
+From this repo, build an image from the pinned **buggy** source revision:
+
+```sh
+./cocoa-runner/build-image.sh FULL_COMMIT_SHA
+```
+
+Keep the returned `sha256:...` image ID and configure the trusted runner:
+
+```
+COCOA_DEMO_API_URL=https://api.sub-zero.dev
+COCOA_DEMO_RUNNER_SECRET=<same runner secret as SubZero API>
+COCOA_DEMO_REVISION=<same full SHA as SubZero API>
+COCOA_DEMO_IMAGE=sha256:<immutable local image ID>
+COCOA_DEMO_RUNTIME=runsc
+```
+
+Start `node cocoa-runner/runner.mjs` under a dedicated service account on that
+VM. Docker access is privileged host access: do not share this account with
+untrusted workloads. Its immutable image contains the original code, offline
+build dependencies and an independently maintained verification probe. Only
+`cards.service.ts` may be patched. A separate probe process verifies the original
+500 response, then null persistence, preserved titles/descriptions, ordinary text
+updates and authentication after the patch. Agent-reported success is insufficient.
+
+The runner sends a heartbeat; without a recent heartbeat, the UI offers the
+existing own-agent path. Enable `DEMO_COCOA_ENABLED` only after a staging run
+passes with a real platform key and the gVisor runtime. No subscriptions or
+customer model keys are needed. The runner does not expose a general shell or
+public container endpoint. The preview is a scoped action in the prospect's
+existing session, not a shareable URL into the container.
+
+A run has a 12-minute lease and an independent 11-minute container deadline.
+Queued work expires after 15 minutes. After a successful fix, previews last up
+to five minutes within that overall deadline. A restart destroys the runner's
+leftover named containers and does not silently repeat model requests. Use a
+single runner process initially. Prospects can revisit saved results; expired
+demo accounts cannot start, inspect or preview runs.
+
+Verification commands:
+
+```sh
+node --test cocoa-runner/policy.test.mjs
+pnpm --filter web exec vitest run src/components/__tests__/cocoa-demo.test.tsx
+# In SubZero API after building:
+node test/demo-cocoa.integration.cjs
+```
+
+RDK publication is deliberately not automatic: this demo stores verified patch
+and test evidence with its run and SubZero resolution note. Publishing that
+material as reusable approved knowledge remains a separate review step.

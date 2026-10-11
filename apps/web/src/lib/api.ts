@@ -118,7 +118,8 @@ export const trello = {
   comments: {
     create: (cardId: string, text: string) =>
       api.post<{ comment: Comment }>(`/cards/${cardId}/comments`, { text }),
-    update: (id: string, text: string) => api.patch<{ comment: Comment }>(`/comments/${id}`, { text }),
+    update: (id: string, text: string) =>
+      api.patch<{ comment: Comment }>(`/comments/${id}`, { text }),
     remove: (id: string) => api.delete(`/comments/${id}`),
   },
 
@@ -140,7 +141,8 @@ export const trello = {
   },
 
   users: {
-    search: (q: string) => api.get<{ users: PublicUser[] }>(`/users/search?q=${encodeURIComponent(q)}`),
+    search: (q: string) =>
+      api.get<{ users: PublicUser[] }>(`/users/search?q=${encodeURIComponent(q)}`),
   },
 
   demo: {
@@ -150,6 +152,9 @@ export const trello = {
         body,
       ),
     me: () => api.get<{ demo: DemoDetails }>('/demo/me'),
+    cocoa: () => api.get<CocoaDemoStatus>('/demo/cocoa'),
+    startCocoa: () => api.post<CocoaDemoStatus>('/demo/cocoa/start', {}),
+    previewCocoa: () => api.post<CocoaDemoStatus>('/demo/cocoa/preview', {}),
   },
 };
 
@@ -165,4 +170,23 @@ export interface DemoDetails {
 export interface DemoCredentials {
   trelloPassword: string;
   subzero: { email: string; password: string };
+}
+
+export interface CocoaDemoStatus {
+  available: boolean;
+  incidentReady: boolean;
+  attemptsRemaining: number;
+  run: null | {
+    id: string;
+    status: string;
+    stage: string;
+    ticketCode: string;
+    summary: string | null;
+    cause: string | null;
+    patch: string | null;
+    verification: { baselineFailed: boolean; fixedPassed: boolean; revision: string } | null;
+    preview: { passed: boolean; message: string } | null;
+    error: string | null;
+    previewAvailable: boolean;
+  };
 }

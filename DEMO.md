@@ -67,3 +67,15 @@ should be — with a new test for every fix.
 
 Everything else in the app is fair game too: break something new in your
 sandbox and it lands in the same queue.
+
+## Prefer a guided demo?
+
+At `/welcome`, choose **Let Cocoa fix this** when hosted demos are available.
+No terminal, model key, agent token or payment details are required. Cocoa gets
+one attempt and one optional retry to repair the card-description bug in a
+private copy. You can watch progress, see the explanation and code change, and
+try the verified feature before the temporary preview closes.
+
+The hosted demo covers one issue. **Use my own agent** retains the full five-bug
+exercise above. Fixes in either path are made in your copy, not deployed to the
+shared demo application.
