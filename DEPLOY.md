@@ -186,7 +186,8 @@ all billable tokens for the configured model, including reasoning tokens where
 applicable. Also configure the provider project's own spending controls.
 
 The coding runner belongs on a **separate disposable Linux VM**, with Docker
-and the `runsc` (gVisor) runtime. Never give the demo API a Docker socket or run
+and preferably the `runsc` (gVisor) runtime. Standard Docker is supported only
+with the explicit opt-in below and provides weaker isolation. Never give the demo API a Docker socket or run
 model-generated application code directly on the SubZero production server.
 Allow outbound HTTPS from the trusted runner to SubZero. The application
 containers themselves have no external network, no provider keys, a read-only
@@ -211,6 +212,18 @@ COCOA_DEMO_IMAGE=sha256:<immutable local image ID>
 COCOA_DEMO_RUNTIME=runsc
 ```
 
+For an explicitly approved deployment without gVisor, set both:
+
+```sh
+COCOA_DEMO_RUNTIME=runc
+COCOA_DEMO_ALLOW_STANDARD_DOCKER=true
+```
+
+There is no automatic fallback if gVisor is missing. Standard Docker retains
+network isolation, a read-only root, a non-root container user, dropped
+capabilities, no-new-privileges, resource limits and a fixed source-file mount.
+It shares the host kernel; a separate runner host remains recommended.
+
 Start `node cocoa-runner/runner.mjs` under a dedicated service account on that
 VM. Docker access is privileged host access: do not share this account with
 untrusted workloads. Its immutable image contains the original code, offline
@@ -221,7 +234,7 @@ updates and authentication after the patch. Agent-reported success is insufficie
 
 The runner sends a heartbeat; without a recent heartbeat, the UI offers the
 existing own-agent path. Enable `DEMO_COCOA_ENABLED` only after a staging run
-passes with a real platform key and the gVisor runtime. No subscriptions or
+passes with a real platform key and the selected sandbox runtime. No subscriptions or
 customer model keys are needed. The runner does not expose a general shell or
 public container endpoint. The preview is a scoped action in the prospect's
 existing session, not a shareable URL into the container.

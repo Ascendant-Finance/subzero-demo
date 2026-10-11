@@ -10,7 +10,11 @@ export function applyPatch(source,patch){
  if(result===source||Buffer.byteLength(result)>80000)throw Error('Invalid patched source');
  return result;
 }
-export function containerArgs(name,image,patch,runtime){
- if(!/^cocoa-demo-[a-f0-9-]+$/.test(name)||runtime!=='runsc')throw Error('A gVisor sandbox is required');
+export function validateRuntime(runtime,allowStandardDocker=false){
+ if(runtime!=='runsc' && !(runtime==='runc' && allowStandardDocker===true))throw Error('Use runsc or explicitly opt into standard Docker isolation');
+}
+export function containerArgs(name,image,patch,runtime,allowStandardDocker=false){
+ validateRuntime(runtime,allowStandardDocker);
+ if(!/^cocoa-demo-[a-f0-9-]+$/.test(name))throw Error('Invalid sandbox name');
  return ['run','--detach','--name',name,'--runtime',runtime,'--network','none','--read-only','--cap-drop','ALL','--security-opt','no-new-privileges','--memory','1536m','--memory-swap','1536m','--cpus','1','--pids-limit','256','--tmpfs','/tmp:rw,nosuid,size=512m,mode=1777',...(patch?['--mount',`type=bind,src=${patch},dst=/app/${SOURCE},readonly`]:[]),image];
 }

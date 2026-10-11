@@ -4,14 +4,16 @@ import {promisify} from 'node:util';
 import {mkdtemp,writeFile,rm,chmod} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
-import {SOURCE,SCENARIO,applyPatch,containerArgs} from './policy.mjs';
+import {SOURCE,SCENARIO,applyPatch,containerArgs,validateRuntime} from './policy.mjs';
 const exec=promisify(execFile);
 const api=process.env.COCOA_DEMO_API_URL;
 const secret=process.env.COCOA_DEMO_RUNNER_SECRET;
 const image=process.env.COCOA_DEMO_IMAGE;
 const revision=process.env.COCOA_DEMO_REVISION;
 const runtime=process.env.COCOA_DEMO_RUNTIME;
-if(!api?.startsWith('https://')||!secret||secret.length<32||!image||!/^sha256:[a-f0-9]{64}$/.test(image)||!revision?.match(/^[a-f0-9]{40}$/)||runtime!=='runsc')throw Error('Configure HTTPS API, secret, immutable image digest, pinned revision and runsc runtime');
+const allowStandardDocker=process.env.COCOA_DEMO_ALLOW_STANDARD_DOCKER==='true';
+validateRuntime(runtime,allowStandardDocker);
+if(!api?.startsWith('https://')||!secret||secret.length<32||!image||!/^sha256:[a-f0-9]{64}$/.test(image)||!revision?.match(/^[a-f0-9]{40}$/))throw Error('Configure HTTPS API, secret, immutable image digest, pinned revision and an explicitly configured sandbox runtime');
 let stopping=false;const active=new Set();
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function docker(args,timeout=120000){return (await exec('docker',args,{timeout,maxBuffer:1024*1024,env:{PATH:process.env.PATH,HOME:process.env.HOME}})).stdout.trim();}
@@ -22,7 +24,7 @@ async function request(path,body,lease){
 }
 async function remove(name){await docker(['rm','-f',name],20000).catch(()=>{});active.delete(name);}
 async function start(name,patch){
- active.add(name);await docker(containerArgs(name,image,patch,runtime));
+ active.add(name);await docker(containerArgs(name,image,patch,runtime,allowStandardDocker));
  for(let n=0;n<100&&!stopping;n++){
   try{await docker(['exec',name,'node','/opt/cocoa/probe.mjs','ready'],5000);return;}catch{await sleep(1000);}
  }
