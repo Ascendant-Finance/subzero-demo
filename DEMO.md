@@ -71,11 +71,16 @@ sandbox and it lands in the same queue.
 ## Prefer a guided demo?
 
 At `/welcome`, choose **Let Cocoa fix this** when hosted demos are available.
-No terminal, model key, agent token or payment details are required. Cocoa gets
-one attempt and one optional retry to repair the card-description bug in a
-private copy. You can watch progress, see the explanation and code change, and
-try the verified feature before the temporary preview closes.
+No terminal, model key, agent token or payment details are required. Cocoa reads
+the real incident and reviewed source excerpt, diagnoses the cause, and selects
+the supported null-description repair. The app enables that reviewed behavior
+only on your demo board and verifies it using a sample card.
+
+Try clearing the sample description or open your repaired board. The repair
+lasts until you reset it or your demo expires. Reset restores the planted bug
+without refunding the diagnosis allowance. One diagnosis and one optional retry
+are included. The UI explicitly describes this as a reviewed repair.
 
 The hosted demo covers one issue. **Use my own agent** retains the full five-bug
-exercise above. Fixes in either path are made in your copy, not deployed to the
-shared demo application.
+coding exercise above. No Docker, gVisor or separate server is needed for the
+guided experience. It does not execute AI-generated code.

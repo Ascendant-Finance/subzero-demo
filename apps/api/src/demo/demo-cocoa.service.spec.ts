@@ -1,4 +1,6 @@
 import { ConfigService } from '@nestjs/config';
+import { CardsService } from '../cards/cards.service';
+import { OrderingService } from '../ordering/ordering.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { DemoCocoaService } from './demo-cocoa.service';
 describe('Cocoa demo proxy', () => {
@@ -21,6 +23,8 @@ describe('Cocoa demo proxy', () => {
       proxy: new DemoCocoaService(
         { demoTenant: { findUnique } } as unknown as PrismaService,
         config,
+        {} as CardsService,
+        {} as OrderingService,
       ),
       findUnique,
     };

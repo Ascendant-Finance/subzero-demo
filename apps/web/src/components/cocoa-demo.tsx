@@ -1,32 +1,19 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { trello, type CocoaDemoStatus } from '@/lib/api';
 import { ApiError } from '@/lib/api-client';
-const stages: Record<string, string> = {
-  queued: 'Your demo is queued. You can leave this page and return.',
-  reproducing: 'Cocoa is reproducing the problem in your private copy.',
-  fixing: 'Cocoa is reading the code and preparing a fix.',
-  testing: 'Cocoa is checking that the fix works.',
-  verified: 'The fix passed verification. Try it below.',
-  completed: 'Your fix and verification results are saved.',
-  failed: 'Cocoa could not verify a fix this time.',
-};
 export function CocoaDemo() {
   const [state, setState] = useState<CocoaDemoStatus | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [previewPending, setPreviewPending] = useState(false);
   useEffect(() => {
     let disposed = false;
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
       try {
         const s = await trello.demo.cocoa();
-        if (!disposed) {
-          setState(s);
-          setError('');
-          if (s.run?.preview) setPreviewPending(false);
-        }
+        if (!disposed) setState(s);
       } catch {
         if (!disposed)
           setError('Cocoa is not available right now. You can still use your own agent below.');
@@ -39,17 +26,23 @@ export function CocoaDemo() {
       disposed = true;
       clearTimeout(timer);
     };
-    // One polling loop per mounted page; it never starts a paid operation.
   }, []);
-  async function act(preview = false) {
+  async function act(action: 'start' | 'preview' | 'reset') {
     setBusy(true);
     setError('');
     try {
-      setState(await (preview ? trello.demo.previewCocoa() : trello.demo.startCocoa()));
-      if (preview) setPreviewPending(true);
+      setState(
+        await (action === 'start'
+          ? trello.demo.startCocoa()
+          : action === 'preview'
+            ? trello.demo.previewCocoa()
+            : trello.demo.resetCocoa()),
+      );
     } catch (e) {
       setError(
-        e instanceof ApiError ? e.message : 'Cocoa is temporarily unavailable. Please try again.',
+        e instanceof ApiError
+          ? e.message
+          : 'Cocoa is temporarily unavailable. Your progress is saved; please try again.',
       );
     } finally {
       setBusy(false);
@@ -58,9 +51,8 @@ export function CocoaDemo() {
   const run = state?.run;
   const canStart =
     state?.available &&
-    state.incidentReady &&
-    state.attemptsRemaining > 0 &&
-    (!run || run.status === 'failed');
+    (run?.status === 'ready' ||
+      (state.incidentReady && state.attemptsRemaining > 0 && (!run || run.status === 'failed')));
   return (
     <section
       className="rounded-[var(--radius)] border border-[var(--color-accent)] bg-[var(--color-surface)] p-6"
@@ -73,12 +65,12 @@ export function CocoaDemo() {
         Let Cocoa fix your first issue
       </h2>
       <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-        Clearing a card’s description crashes the app. Cocoa will reproduce the problem, change the
-        code and test the fix in a private copy just for you.
+        Clearing a card’s description crashes the app. Cocoa diagnoses the incident and selects a
+        reviewed repair for your demo board. Then you can try the repaired feature yourself.
       </p>
       {!run && (
         <p className="mt-3 text-sm">
-          One guided fix and one retry are included. No AI key or agent installation needed.
+          One guided diagnosis and one retry are included. No AI key or agent installation needed.
         </p>
       )}
       {error && (
@@ -100,63 +92,82 @@ export function CocoaDemo() {
       {canStart && (
         <button
           disabled={busy}
-          onClick={() => void act()}
+          onClick={() => void act('start')}
           className="mt-4 rounded bg-[var(--color-accent)] px-5 py-3 font-semibold text-white disabled:opacity-50"
         >
-          {busy ? 'Starting Cocoa…' : run ? 'Try Cocoa once more' : 'Let Cocoa fix this'}
+          {busy
+            ? 'Cocoa is working…'
+            : run?.status === 'ready'
+              ? 'Finish applying the repair'
+              : run
+                ? 'Try Cocoa once more'
+                : 'Let Cocoa fix this'}
         </button>
       )}
       {run && (
         <div className="mt-4 space-y-3" aria-live="polite">
-          <p className="font-semibold">{stages[run.stage] ?? 'Checking your demo…'}</p>
+          <p className="font-semibold">
+            {run.status === 'running'
+              ? 'Cocoa is diagnosing the incident…'
+              : run.status === 'ready'
+                ? 'Cocoa selected a reviewed repair.'
+                : run.status === 'completed'
+                  ? state?.repairApplied
+                    ? 'Your reviewed repair is applied and checked.'
+                    : 'Your repair was reset. The original demo behavior is restored.'
+                  : 'Cocoa could not select a supported repair this time.'}
+          </p>
           <p className="text-sm">Incident {run.ticketCode}</p>
           {run.error && <p className="text-sm">{run.error}</p>}
-          {run.verification && (
-            <>
-              <div className="rounded bg-emerald-50 p-4 text-sm text-emerald-950">
-                <p>
-                  <strong>What broke:</strong> {run.cause}
-                </p>
-                <p className="mt-2">
-                  <strong>What changed:</strong> {run.summary}
-                </p>
-                <p className="mt-2">
-                  The same verification failed before the change and passed afterward. The shared
-                  demo app has not been modified.
-                </p>
-              </div>
-              {run.previewAvailable ? (
-                <div className="rounded border border-[var(--color-border)] p-4">
-                  <h3 className="font-semibold">Try the repaired feature</h3>
-                  <p className="my-2 text-sm">
-                    Cocoa’s private preview will create a sample card, clear its description, and
-                    check that its title stays intact.
-                  </p>
-                  <button
-                    disabled={busy || previewPending}
-                    onClick={() => void act(true)}
-                    className="rounded bg-[var(--color-accent)] px-4 py-2 text-white disabled:opacity-50"
-                  >
-                    {previewPending ? 'Trying the fix…' : 'Clear the sample card’s description'}
-                  </button>
-                  {run.preview && (
-                    <p className="mt-2 text-sm" role="status">
-                      {run.preview.message}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm">
-                  The temporary preview has closed. Your results remain here.
+          {run.cause && (
+            <div className="rounded bg-emerald-50 p-4 text-sm text-emerald-950">
+              <p>
+                <strong>What broke:</strong> {run.cause}
+              </p>
+              <p className="mt-2">
+                <strong>Selected repair:</strong> {run.summary}
+              </p>
+              <p className="mt-2">
+                This guided demo uses a repair reviewed and tested by our team. It applies only to
+                your demo board.
+              </p>
+            </div>
+          )}
+          {state?.repairApplied && (
+            <div className="space-y-3 rounded border border-[var(--color-border)] p-4">
+              <h3 className="font-semibold">Try the repaired feature</h3>
+              <p className="text-sm">
+                Clear the sample card’s description and check that its title stays intact, or open
+                your board to try it there.
+              </p>
+              <button
+                disabled={busy}
+                onClick={() => void act('preview')}
+                className="rounded bg-[var(--color-accent)] px-4 py-2 text-white disabled:opacity-50"
+              >
+                {busy ? 'Working…' : 'Clear the sample card’s description'}
+              </button>
+              {state.preview?.message && (
+                <p className="text-sm" role="status">
+                  {state.preview.message}
                 </p>
               )}
+              <p>
+                <Link className="text-sm underline" href={'/boards/' + state.boardId}>
+                  Open my repaired board
+                </Link>
+              </p>
               <details className="text-sm">
-                <summary className="cursor-pointer">Show the code change</summary>
-                <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-900 p-3 text-xs text-slate-100">
-                  {run.patch}
-                </pre>
+                <summary className="cursor-pointer">Reset this repair</summary>
+                <p className="my-2">
+                  Restore the original bug on your board. This does not restore your free diagnosis
+                  allowance.
+                </p>
+                <button disabled={busy} onClick={() => void act('reset')} className="underline">
+                  Restore the original demo behavior
+                </button>
               </details>
-            </>
+            </div>
           )}
           {run.status === 'failed' && state?.attemptsRemaining === 0 && (
             <p className="text-sm">

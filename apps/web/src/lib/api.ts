@@ -154,6 +154,7 @@ export const trello = {
     me: () => api.get<{ demo: DemoDetails }>('/demo/me'),
     cocoa: () => api.get<CocoaDemoStatus>('/demo/cocoa'),
     startCocoa: () => api.post<CocoaDemoStatus>('/demo/cocoa/start', {}),
+    resetCocoa: () => api.post<CocoaDemoStatus>('/demo/cocoa/reset', {}),
     previewCocoa: () => api.post<CocoaDemoStatus>('/demo/cocoa/preview', {}),
   },
 };
@@ -176,6 +177,10 @@ export interface CocoaDemoStatus {
   available: boolean;
   incidentReady: boolean;
   attemptsRemaining: number;
+  repairApplied: boolean;
+  boardId: string | null;
+  sampleCardId: string | null;
+  preview: { passed?: boolean; message?: string; reset?: boolean } | null;
   run: null | {
     id: string;
     status: string;
@@ -183,10 +188,8 @@ export interface CocoaDemoStatus {
     ticketCode: string;
     summary: string | null;
     cause: string | null;
-    patch: string | null;
-    verification: { baselineFailed: boolean; fixedPassed: boolean; revision: string } | null;
-    preview: { passed: boolean; message: string } | null;
+    repairId: string | null;
+    verification: unknown;
     error: string | null;
-    previewAvailable: boolean;
   };
 }
